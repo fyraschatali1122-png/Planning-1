@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="fr">
+<html lang="de">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Planning des gardes</title>
+  <title>Dienstplan</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="container">
-    <h1>Planning des gardes</h1>
-    <p class="muted">Source: Google Sheet publié en CSV (configuré dans <code>config.js</code>)</p>
+    <h1>Dienstplan</h1>
+    <p class="muted">Quelle: Veröffentlichtes Google Sheet als CSV (in <code>config.js</code> konfiguriert)</p>
   </header>
 
   <section class="container controls">
     <div class="row">
-      <label>Nom</label>
-      <input id="qName" type="text" placeholder="Tape un nom..." />
+      <label>Name</label>
+      <input id="qName" type="text" placeholder="Name suchen…" />
     </div>
     <div class="row">
-      <label>Type</label>
+      <label>Dienst</label>
       <select id="qType">
-        <option value="">(Tous)</option>
+        <option value="">(Alle)</option>
         <option value="Frühschicht">Frühschicht</option>
         <option value="Spätschicht">Spätschicht</option>
         <option value="Nachtschicht">Nachtschicht</option>
@@ -29,34 +29,34 @@
       </select>
     </div>
     <div class="row">
-      <label>Jour</label>
+      <label>Datum</label>
       <input id="qDate" type="date" />
     </div>
     <div class="row">
-      <button id="btnFilter">Filtrer</button>
-      <button id="btnReset" class="secondary">Réinitialiser</button>
+      <button id="btnFilter">Filtern</button>
+      <button id="btnReset" class="secondary">Zurücksetzen</button>
     </div>
   </section>
 
   <section class="container grid-wrap">
     <div class="grid">
       <div class="card">
-        <h2>Équipe du jour</h2>
-        <p class="muted">Montre qui travaille le jour choisi (par type)</p>
+        <h2>Team des Tages</h2>
+        <p class="muted">Zeigt, wer am gewählten Tag arbeitet (pro Dienst)</p>
         <ul id="teamList" class="list"></ul>
       </div>
 
       <div class="card span-2">
-        <h2>Résultats</h2>
+        <h2>Ergebnisse</h2>
         <div class="table-wrap">
           <table id="tbl">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Début</th>
-                <th>Fin</th>
-                <th>Nom</th>
-                <th>Service</th>
+                <th>Datum</th>
+                <th>Beginn</th>
+                <th>Ende</th>
+                <th>Name</th>
+                <th>Dienst</th>
               </tr>
             </thead>
             <tbody id="tbody"></tbody>
@@ -67,7 +67,9 @@
   </section>
 
   <footer class="container">
-    <p class="muted">Codes: ES/SN→Spätschicht, EF/FN→Frühschicht, K2N/AK2/AKN→Nachtschicht, U/O→Urlaub, AV→Frei</p>
+    <p class="muted">
+      Codes: ES/SN → Spätschicht, EF/FN → Frühschicht, K2N/AK2/AKN → Nachtschicht, U/O → Urlaub, AV → Frei
+    </p>
   </footer>
 
   <script src="config.js"></script>
