@@ -34,3 +34,33 @@ tbody tr:nth-child(odd) { background: var(--tableStripe); }
 .list { margin:0; padding-left: 18px; }
 .list li { margin: 6px 0; }
 @media (max-width: 900px) { .grid-wrap .grid { grid-template-columns: 1fr; } .span-2 { grid-column: auto; } }
+/* Badges de Dienst */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  background: #0c0f15;
+}
+
+/* Couleurs par type */
+.badge--frueh   { background: #11351a; border-color: #1e5b2b; }
+.badge--spaet   { background: #3a2811; border-color: #6c4b1a; }
+.badge--nacht   { background: #2a1841; border-color: #4f2f7a; }
+.badge--urlaub  { background: #0f2f4a; border-color: #1f5a8a; }
+.badge--frei    { background: #1e222b; border-color: #2f384d; }
+
+/* Petit point de couleur dans le badge (option) */
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+.badge--frueh  .dot { color: #36d17a; }
+.badge--spaet  .dot { color: #ff9f3a; }
+.badge--nacht  .dot { color: #9b6dff; }
+.badge--urlaub .dot { color: #5bb4ff; }
+.badge--frei   .dot { color: #c3c8d4; }
