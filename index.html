@@ -40,6 +40,24 @@
       <button id="btnReset" class="secondary">Zurücksetzen</button>
     </div>
   </section>
+  <section class="container" style="margin-top:8px; display:flex; gap:8px;">
+  <button id="btnShowList" class="secondary">Liste</button>
+  <button id="btnShowCal">Kalender</button>
+</section>
+
+<section class="container" id="calendarSection" style="display:none;">
+  <div id="calendar"
+       style="background:#161a22; border:1px solid #232838; border-radius:12px; padding:8px;">
+  </div>
+  <div style="margin-top:10px" class="muted">
+    Legende:
+    <span class="badge badge--frueh"><span class="dot"></span>Frühschicht</span>
+    <span class="badge badge--spaet"><span class="dot"></span>Spätschicht</span>
+    <span class="badge badge--nacht"><span class="dot"></span>Nachtschicht</span>
+    <span class="badge badge--urlaub"><span class="dot"></span>Urlaub</span>
+    <span class="badge badge--frei"><span class="dot"></span>Frei</span>
+  </div>
+</section>
 
   <section class="container grid-wrap">
     <div class="grid">
