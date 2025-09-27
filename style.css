@@ -64,3 +64,4 @@ tbody tr:nth-child(odd) { background: var(--tableStripe); }
 .badge--nacht  .dot { color: #9b6dff; }
 .badge--urlaub .dot { color: #5bb4ff; }
 .badge--frei   .dot { color: #c3c8d4; }
+#calendar .fc { height: 700px; }
