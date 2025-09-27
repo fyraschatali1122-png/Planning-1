@@ -221,6 +221,10 @@ tdSchicht.innerHTML = sch
     });
   tb.appendChild(frag);
 }
+  // si la vue calendrier est affichée, on met aussi à jour le calendrier
+if (document.getElementById('calendarSection').style.display !== 'none') {
+  renderCalendar(list);
+}
 
 function applyFilters() {
   const qName = $("#qName").value.trim().toLowerCase();
