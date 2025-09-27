@@ -1,25 +1,3 @@
-function iconForSchicht(s) {
-  switch (s) {
-    case "Frühschicht":  return "🌅";
-    case "Spätschicht":  return "🌇";
-    case "Nachtschicht": return "🌙";
-    case "Urlaub":       return "🏖️";
-    case "Frei":         return "⏸️";
-    default:             return "🗓️";
-  }
-}
-
-function classForSchicht(s) {
-  switch (s) {
-    case "Frühschicht":  return "badge--frueh";
-    case "Spätschicht":  return "badge--spaet";
-    case "Nachtschicht": return "badge--nacht";
-    case "Urlaub":       return "badge--urlaub";
-    case "Frei":         return "badge--frei";
-    default:             return "";
-  }
-}
-
 // ====== Helfer ======
 const $ = (sel) => document.querySelector(sel);
 
@@ -119,7 +97,27 @@ async function loadData() {
   render(ALL);
   refreshTeamListForSelectedDate();
 }
+function iconForSchicht(s) {
+  switch (s) {
+    case "Frühschicht":  return "🌅";
+    case "Spätschicht":  return "🌇";
+    case "Nachtschicht": return "🌙";
+    case "Urlaub":       return "🏖️";
+    case "Frei":         return "⏸️";
+    default:             return "🗓️";
+  }
+}
 
+function classForSchicht(s) {
+  switch (s) {
+    case "Frühschicht":  return "badge--frueh";
+    case "Spätschicht":  return "badge--spaet";
+    case "Nachtschicht": return "badge--nacht";
+    case "Urlaub":       return "badge--urlaub";
+    case "Frei":         return "badge--frei";
+    default:             return "";
+  }
+}
 function render(list) {
   const tb = $("#tbody");
   tb.innerHTML = "";
@@ -138,7 +136,12 @@ function render(list) {
       tdStart.textContent = row.start || (row.startDt ? fmt(row.startDt,{hour:'2-digit',minute:'2-digit'}) : "");
       tdEnd.textContent = row.end || (row.endDt ? fmt(row.endDt,{hour:'2-digit',minute:'2-digit'}) : "");
       tdName.textContent = row.name;
-      tdSchicht.textContent = row.schicht || mapCode(row.code);
+      const sch = row.schicht || mapCode(row.code) || "";
+const badgeCls = classForSchicht(sch);
+const emoji = iconForSchicht(sch);
+tdSchicht.innerHTML = sch
+  ? `<span class="badge ${badgeCls}"><span class="dot"></span>${emoji} ${sch}</span>`
+  : "";
       tr.append(tdDate, tdStart, tdEnd, tdName, tdSchicht);
       frag.appendChild(tr);
     });
