@@ -1,14 +1,21 @@
 <!doctype html>
 <html lang="de">
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
-<head>
+  <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Dienstplan</title>
+
   <link rel="stylesheet" href="style.css" />
-</head>
+
+  <!-- FullCalendar: DOIT être dans <head> -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
+
+  <!-- Ton script à la fin du head (defer ok) -->
+  <script src="config.js"></script>
+  <script src="script.js" defer></script>
+  </head>
 <body>
   <header class="container">
     <h1>Dienstplan</h1>
