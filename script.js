@@ -292,3 +292,14 @@ loadData().catch(err => {
   console.error(err);
   alert("Fehler beim Laden der CSV. Bitte URL in config.js prüfen.");
 });
+
+document.getElementById('btnShowCal').addEventListener('click', () => {
+  document.getElementById('calendarSection').style.display = '';
+  document.querySelector('.grid-wrap').style.display = 'none';
+  renderCalendar(ALL); // ou la liste filtrée si tu veux
+});
+
+document.getElementById('btnShowList').addEventListener('click', () => {
+  document.getElementById('calendarSection').style.display = 'none';
+  document.querySelector('.grid-wrap').style.display = '';
+});
