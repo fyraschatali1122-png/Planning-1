@@ -1,3 +1,25 @@
+function iconForSchicht(s) {
+  switch (s) {
+    case "Frühschicht":  return "🌅";
+    case "Spätschicht":  return "🌇";
+    case "Nachtschicht": return "🌙";
+    case "Urlaub":       return "🏖️";
+    case "Frei":         return "⏸️";
+    default:             return "🗓️";
+  }
+}
+
+function classForSchicht(s) {
+  switch (s) {
+    case "Frühschicht":  return "badge--frueh";
+    case "Spätschicht":  return "badge--spaet";
+    case "Nachtschicht": return "badge--nacht";
+    case "Urlaub":       return "badge--urlaub";
+    case "Frei":         return "badge--frei";
+    default:             return "";
+  }
+}
+
 // ====== Helfer ======
 const $ = (sel) => document.querySelector(sel);
 
