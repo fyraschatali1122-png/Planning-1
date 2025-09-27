@@ -43,6 +43,75 @@ function defaultTimesForCode(code) {
   if (c === "EF" || c === "FN") return { start: "06:00", end: "14:00" }; // Früh
   if (c === "ES" || c === "SN") return { start: "14:00", end: "22:00" }; // Spät
   if (c === "K2N" || c === "AK2" || c === "AKN") return { start: "22:00", end: "06:00" }; // Nacht
+  if (c === "U" || c === "O" || c === "AV") return { start: "", end: "" }; // Urlaub/Frei
+  return { start: "", end: "" };
+}
+
+function colorForSchicht(s) {
+  switch (s) {
+    case "Frühschicht":  return "#36d17a";
+    case "Spätschicht":  return "#ff9f3a";
+    case "Nachtschicht": return "#9b6dff";
+    case "Urlaub":       return "#5bb4ff";
+    case "Frei":         return "#c3c8d4";
+    default:             return "#5b9fff";
+  }
+}
+
+let calendar; // instance FullCalendar
+
+function buildCalendarEvents(data) {
+  const events = [];
+  data.forEach(row => {
+    const sch = row.schicht || mapCode(row.code) || "";
+    const { start: defS, end: defE } = defaultTimesForCode(row.code);
+    const startStr = (row.start && row.start.trim()) || defS;
+    const endStr   = (row.end && row.end.trim())   || defE;
+    const dateISO = row.date;
+
+    if (!startStr || !endStr) {
+      events.push({ title: `${row.name} (${row.code})`, start: dateISO, allDay: true, color: colorForSchicht(sch) });
+      return;
+    }
+    const sDate = new Date(`${dateISO}T${startStr}`);
+    let eDate = new Date(`${dateISO}T${endStr}`);
+    if (eDate <= sDate) eDate = new Date(eDate.getTime() + 24 * 3600 * 1000); // nuit -> lendemain
+
+    events.push({
+      title: `${row.name} (${row.code})`,
+      start: sDate.toISOString(),
+      end: eDate.toISOString(),
+      color: colorForSchicht(sch)
+    });
+  });
+  return events;
+}
+
+function renderCalendar(data) {
+  const events = buildCalendarEvents(data);
+  const el = document.getElementById('calendar');
+  if (!el) return;
+
+  if (calendar) {
+    calendar.removeAllEvents();
+    calendar.addEventSource(events);
+    calendar.render();
+    return;
+  }
+  calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    locale: 'de',
+    firstDay: 1,
+    headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' },
+    events
+  });
+  calendar.render();
+}
+function defaultTimesForCode(code) {
+  const c = (code || "").toUpperCase();
+  if (c === "EF" || c === "FN") return { start: "06:00", end: "14:00" }; // Früh
+  if (c === "ES" || c === "SN") return { start: "14:00", end: "22:00" }; // Spät
+  if (c === "K2N" || c === "AK2" || c === "AKN") return { start: "22:00", end: "06:00" }; // Nacht
 
 function toDateISO(d) {
   const dt = new Date(d);
