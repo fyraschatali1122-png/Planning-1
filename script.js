@@ -38,6 +38,11 @@ function mapCode(code) {
   if (c === "AV") return "Frei";
   return c;
 }
+function defaultTimesForCode(code) {
+  const c = (code || "").toUpperCase();
+  if (c === "EF" || c === "FN") return { start: "06:00", end: "14:00" }; // Früh
+  if (c === "ES" || c === "SN") return { start: "14:00", end: "22:00" }; // Spät
+  if (c === "K2N" || c === "AK2" || c === "AKN") return { start: "22:00", end: "06:00" }; // Nacht
 
 function toDateISO(d) {
   const dt = new Date(d);
