@@ -1,106 +1,296 @@
 <!doctype html>
 <html lang="de">
-  <head>
+<head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dienstplan</title>
 
-  <link rel="stylesheet" href="style.css" />
+  <!-- Styles rapides -->
+  <style>
+    :root { --bg:#0f172a; --card:#111827; --muted:#a3a3a3; --txt:#e5e7eb; --accent:#22d3ee; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.5 system-ui,Segoe UI,Roboto}
+    header,section,footer{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0 0 6px 0} .muted{color:var(--muted)}
+    .row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+    input,select,button{padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:var(--txt)}
+    button{background:#0ea5e9;border:0;cursor:pointer} button.secondary{background:#334155}
+    .grid{display:grid;grid-template-columns:1fr 2fr;gap:16px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid #1f2937;border-radius:14px;padding:16px}
+    .list{list-style:none;margin:0;padding:0}
+    .list li{padding:6px 0;border-bottom:1px dashed #1f2937}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px solid #1f2937;text-align:left}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;font-size:12px}
+    .badge--frueh{background:#163e2a} .badge--spaet{background:#3a1f1f} .badge--nacht{background:#20225a}
+    .badge--urlaub{background:#3e2a16} .badge--frei{background:#243142}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:#22d3ee}
+    /* FullCalendar height */
+    #calendar .fc{height:700px}
+    /* toggle buttons bar */
+    .switchbar{display:flex;gap:8px;margin-top:10px}
+  </style>
 
-  <!-- FullCalendar: DOIT être dans <head> -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <!-- FullCalendar + Locale -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/core/locales-all.global.min.js"></script>
 
-  <!-- Ton script à la fin du head (defer ok) -->
-  <script src="config.js"></script>
-  <script src="script.js" defer></script>
-  </head>
+  <!-- PapaParse (CSV simple) -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
 <body>
-  <header class="container">
-    <h1>Dienstplan</h1>
-    <p class="muted">Quelle: Veröffentlichtes Google Sheet als CSV (in <code>config.js</code> konfiguriert)</p>
-  </header>
+<header>
+  <h1>Dienstplan</h1>
+  <p class="muted">Quelle: veröffentlichtes Google-Sheet (CSV).</p>
+</header>
 
-  <section class="container controls">
-    <div class="row">
-      <label>Name</label>
-      <input id="qName" type="text" placeholder="Name suchen…" />
-    </div>
-    <div class="row">
-      <label>Dienst</label>
-      <select id="qType">
-        <option value="">(Alle)</option>
-        <option value="Frühschicht">Frühschicht</option>
-        <option value="Spätschicht">Spätschicht</option>
-        <option value="Nachtschicht">Nachtschicht</option>
-        <option value="Urlaub">Urlaub</option>
-        <option value="Frei">Frei</option>
-      </select>
-    </div>
-    <div class="row">
-      <label>Datum</label>
-      <input id="qDate" type="date" />
-    </div>
-    <div class="row">
-      <button id="btnFilter">Filtern</button>
-      <button id="btnReset" class="secondary">Zurücksetzen</button>
-    </div>
-  </section>
-  <section class="container" style="margin-top:8px; display:flex; gap:8px;">
-  <button id="btnShowList" class="secondary">Liste</button>
-  <button id="btnShowCal">Kalender</button>
-</section>
-
-<section class="container" id="calendarSection" style="display:none;">
-  <div id="calendar"
-       style="background:#161a22; border:1px solid #232838; border-radius:12px; padding:8px;">
+<section>
+  <div class="row">
+    <label>Name</label>
+    <input id="qName" type="text" placeholder="Name suchen…" />
   </div>
-  <div style="margin-top:10px" class="muted">
-    Legende:
-    <span class="badge badge--frueh"><span class="dot"></span>Frühschicht</span>
-    <span class="badge badge--spaet"><span class="dot"></span>Spätschicht</span>
-    <span class="badge badge--nacht"><span class="dot"></span>Nachtschicht</span>
-    <span class="badge badge--urlaub"><span class="dot"></span>Urlaub</span>
-    <span class="badge badge--frei"><span class="dot"></span>Frei</span>
+  <div class="row">
+    <label>Dienst</label>
+    <select id="qType">
+      <option value="">(Alle)</option>
+      <option value="Frühschicht">Frühschicht</option>
+      <option value="Spätschicht">Spätschicht</option>
+      <option value="Nachtschicht">Nachtschicht</option>
+      <option value="Urlaub">Urlaub</option>
+      <option value="Frei">Frei</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Datum</label>
+    <input id="qDate" type="date" />
+  </div>
+  <div class="row">
+    <button id="btnFilter">Filtern</button>
+    <button id="btnReset" class="secondary">Zurücksetzen</button>
+  </div>
+
+  <div class="switchbar">
+    <button id="btnShowList" class="secondary">Liste</button>
+    <button id="btnShowCal">Kalender</button>
   </div>
 </section>
 
-  <section class="container grid-wrap">
-    <div class="grid">
-      <div class="card">
-        <h2>Team des Tages</h2>
-        <p class="muted">Zeigt, wer am gewählten Tag arbeitet (pro Dienst)</p>
-        <ul id="teamList" class="list"></ul>
-      </div>
+<section id="calendarSection" style="display:none;">
+  <div id="calendar" class="card"></div>
+</section>
 
-      <div class="card span-2">
-        <h2>Ergebnisse</h2>
-        <div class="table-wrap">
-          <table id="tbl">
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Beginn</th>
-                <th>Ende</th>
-                <th>Name</th>
-                <th>Dienst</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
-        </div>
-      </div>
+<section class="grid" id="listSection">
+  <div class="card">
+    <h2>Team des Tages</h2>
+    <p class="muted">Zeigt, wer am gewählten Tag arbeitet (pro Dienst).</p>
+    <ul id="teamList" class="list"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Ergebnisse</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Datum</th><th>Beginn</th><th>Ende</th><th>Name</th><th>Dienst</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
     </div>
-  </section>
-
-  <footer class="container">
-    <p class="muted">
-      Codes: ES/SN → Spätschicht, EF/FN → Frühschicht, K2N/AK2/AKN → Nachtschicht, U/O → Urlaub, AV → Frei
+    <p class="muted">Legende:
+      <span class="badge badge--frueh"><span class="dot"></span>Frühschicht</span>
+      <span class="badge badge--spaet"><span class="dot"></span>Spätschicht</span>
+      <span class="badge badge--nacht"><span class="dot"></span>Nachtschicht</span>
+      <span class="badge badge--urlaub"><span class="dot"></span>Urlaub</span>
+      <span class="badge badge--frei"><span class="dot"></span>Frei</span>
     </p>
-  </footer>
+  </div>
+</section>
 
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+<footer><section><p class="muted">Codes: ES/SN → Spätschicht, EF/FN → Frühschicht, K2N/AK2/AKN → Nachtschicht, U/O → Urlaub, AV → Frei.</p></section></footer>
+
+<script>
+  // 1) Mets ICI l’URL CSV de Google Sheets (Publier sur le Web → CSV)
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOuHwb0HGELAZhFI3d4vrmWxevqbwwzPgTIOD8TIGII_x7oSsJleuGLdX4cYb5V373IX_Rn1RPrh_Q/pub?output=csv";
+
+  // 2) Helpers
+  const $ = s => document.querySelector(s);
+  const mapCode = c => {
+    if (!c) return "";
+    const x = String(c).toUpperCase().trim();
+    if (x==="EF"||x==="FN") return "Frühschicht";
+    if (x==="ES"||x==="SN") return "Spätschicht";
+    if (x==="K2N"||x==="AK2"||x==="AKN") return "Nachtschicht";
+    if (x==="U"||x==="O") return "Urlaub";
+    if (x==="AV") return "Frei";
+    return x;
+  };
+  const badgeCls = s => ({
+    "Frühschicht":"badge badge--frueh",
+    "Spätschicht":"badge badge--spaet",
+    "Nachtschicht":"badge badge--nacht",
+    "Urlaub":"badge badge--urlaub",
+    "Frei":"badge badge--frei",
+  }[s] || "badge");
+
+  // 3) État
+  let ALL = []; // {date,start,end,name,code,schicht,startDt,endDt}
+
+  // 4) Chargement CSV (PapaParse)
+  async function loadData(){
+    if (!CSV_URL || CSV_URL.includes("REMPLACE_MOI")) {
+      alert("⚠️ Mets l’URL CSV dans le fichier (const CSV_URL).");
+      return;
+    }
+    const res = await fetch(CSV_URL, { cache:"no-store" });
+    if (!res.ok) throw new Error("CSV nicht erreichbar");
+    const text = await res.text();
+
+    const parsed = Papa.parse(text, { header:true, skipEmptyLines:true });
+    const rows = parsed.data;
+
+    const get = (o,k) => o?.[k] ?? o?.[Object.keys(o).find(x=>x.toLowerCase()==k.toLowerCase())] ?? "";
+
+    ALL = rows.map(r=>{
+      const date = get(r,"Date") || get(r,"Datum");
+      const start = (get(r,"Start")||"").trim();
+      const end   = (get(r,"End")||"").trim();
+      const name  = get(r,"Name");
+      const code  = get(r,"Code");
+      const schicht = mapCode(code);
+
+      const startDt = start ? new Date(`${date}T${start}`) : null;
+      let   endDt   = end   ? new Date(`${date}T${end}`)   : null;
+      if (startDt && endDt && endDt <= startDt) endDt = new Date(endDt.getTime()+24*3600*1000);
+
+      return { date, start, end, name, code, schicht, startDt, endDt };
+    }).filter(x => x.name && x.date);
+
+    renderList(ALL);
+    refreshTeamForPickedDate();
+  }
+
+  // 5) Rendu LISTE
+  function renderList(list){
+    const tb = $("#tbody");
+    tb.innerHTML = "";
+    const frag = document.createDocumentFragment();
+    list
+      .slice()
+      .sort((a,b)=> (a.startDt?.getTime()||0) - (b.startDt?.getTime()||0) || a.name.localeCompare(b.name))
+      .forEach(row=>{
+        const tr = document.createElement("tr");
+        const tdDate = document.createElement("td");
+        const tdStart= document.createElement("td");
+        const tdEnd  = document.createElement("td");
+        const tdName = document.createElement("td");
+        const tdType = document.createElement("td");
+        tdDate.textContent = row.date;
+        tdStart.textContent= row.start || "";
+        tdEnd.textContent  = row.end   || "";
+        tdName.textContent = row.name;
+        tdType.innerHTML   = `<span class="${badgeCls(row.schicht)}"><span class="dot"></span>${row.schicht||""}</span>`;
+        tr.append(tdDate,tdStart,tdEnd,tdName,tdType);
+        frag.appendChild(tr);
+      });
+    tb.appendChild(frag);
+  }
+
+  // 6) Rendu CALENDRIER
+  let calendar;
+  function renderCalendar(list){
+    const el = document.getElementById("calendar");
+    if (!el) return;
+
+    // construire événements
+    const events = list.map(r=>{
+      const title = `${r.name} (${r.code})`;
+      if (!r.startDt) return { title, start:r.date, allDay:true };
+      const evt = { title, start:r.startDt };
+      if (r.endDt) evt.end = r.endDt;
+      return evt;
+    });
+
+    if (calendar){
+      calendar.removeAllEvents();
+      calendar.addEventSource(events);
+      calendar.render();
+      return;
+    }
+    calendar = new FullCalendar.Calendar(el,{
+      locale:"de",
+      initialView:"dayGridMonth",
+      headerToolbar:{ left:"prev,next today", center:"title", right:"dayGridMonth,timeGridWeek,timeGridDay" },
+      events
+    });
+    calendar.render();
+  }
+
+  // 7) Filtres & Team du jour
+  function sameDay(a,b){ return a.getFullYear()==b.getFullYear() && a.getMonth()==b.getMonth() && a.getDate()==b.getDate(); }
+
+  function applyFilters(){
+    const qName = $("#qName").value.trim().toLowerCase();
+    const qType = $("#qType").value;
+    const qDateVal = $("#qDate").value;
+
+    let list = ALL;
+    if (qName) list = list.filter(r => r.name.toLowerCase().includes(qName));
+    if (qType) list = list.filter(r => r.schicht === qType);
+    if (qDateVal){
+      const d = new Date(qDateVal);
+      list = list.filter(r => r.startDt ? sameDay(r.startDt,d) : (r.date===qDateVal));
+    }
+    renderList(list);
+    refreshTeamForPickedDate();
+    if (document.getElementById("calendarSection").style.display !== "none"){
+      renderCalendar(list);
+    }
+  }
+
+  function refreshTeamForPickedDate(){
+    const ul = $("#teamList");
+    ul.innerHTML = "";
+    const val = $("#qDate").value;
+    if (!val){ const li=document.createElement("li"); li.textContent="Wähle ein Datum, um das Team zu sehen."; ul.appendChild(li); return; }
+    const d = new Date(val);
+    const dayRows = ALL.filter(r => r.startDt ? sameDay(r.startDt,d) : (r.date===val));
+    if (!dayRows.length){ const li=document.createElement("li"); li.textContent="Keine Dienste an diesem Tag."; ul.appendChild(li); return; }
+
+    const byType = dayRows.reduce((acc,r)=>{ (acc[r.schicht||"-"]=acc[r.schicht||"-"]||[]).push(r.name); return acc; },{});
+    Object.keys(byType).sort().forEach(k=>{
+      const li = document.createElement("li");
+      const names = [...new Set(byType[k])].sort().join(", ");
+      li.textContent = `${k}: ${names}`;
+      ul.appendChild(li);
+    });
+  }
+
+  // 8) UI
+  $("#btnFilter").addEventListener("click", applyFilters);
+  $("#btnReset").addEventListener("click", ()=>{
+    $("#qName").value=""; $("#qType").value=""; $("#qDate").value="";
+    renderList(ALL); refreshTeamForPickedDate();
+    if (document.getElementById("calendarSection").style.display !== "none") renderCalendar(ALL);
+  });
+  $("#qDate").addEventListener("change", refreshTeamForPickedDate);
+
+  // switch Liste / Kalender
+  document.getElementById("btnShowCal").addEventListener("click", ()=>{
+    document.getElementById("calendarSection").style.display = "";
+    document.getElementById("listSection").style.display = "none";
+    renderCalendar(ALL);
+  });
+  document.getElementById("btnShowList").addEventListener("click", ()=>{
+    document.getElementById("calendarSection").style.display = "none";
+    document.getElementById("listSection").style.display = "";
+  });
+
+  // 9) Go!
+  loadData().catch(err=>{
+    console.error(err);
+    alert("Fehler beim Laden der CSV. Prüfe die CSV-URL (Veröffentlichen → CSV).");
+  });
+</script>
 </body>
 </html>
