@@ -1,4 +1,4 @@
-// ====== Utilitaires ======
+// ====== Helfer ======
 const $ = (sel) => document.querySelector(sel);
 
 function parseCSV(text) {
@@ -61,16 +61,19 @@ function fmt(d, opts) {
     return d.toLocaleString();
   }
 }
-// ====== État ======
+// ====== Zustand ======
 let ALL = []; // {date, start, end, name, code, schicht, startDt, endDt}
 
-// ====== Chargement ======
+// ====== Laden ======
 async function loadData() {
   if (!CSV_URL || CSV_URL.startsWith("REMPLACE_MOI")) {
-    alert("⚠️ Configure d'abord CSV_URL dans config.js (lien CSV Google Sheet publié).");
+    alert("⚠️ Bitte zuerst CSV_URL in config.js eintragen (Google Sheet → Veröffentlichen als CSV).");
     return;
   }
   const res = await fetch(CSV_URL, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(`CSV laden fehlgeschlagen (HTTP ${res.status})`);
+  }
   const text = await res.text();
   const rows = parseCSV(text);
 
@@ -96,7 +99,7 @@ async function loadData() {
 }
 
 function render(list) {
-  const tb = document.querySelector("#tbody");
+  const tb = $("#tbody");
   tb.innerHTML = "";
   const frag = document.createDocumentFragment();
   list
@@ -121,9 +124,9 @@ function render(list) {
 }
 
 function applyFilters() {
-  const qName = document.querySelector("#qName").value.trim().toLowerCase();
-  const qType = document.querySelector("#qType").value;
-  const qDateVal = document.querySelector("#qDate").value;
+  const qName = $("#qName").value.trim().toLowerCase();
+  const qType = $("#qType").value;
+  const qDateVal = $("#qDate").value; // yyyy-mm-dd
 
   let list = ALL;
   if (qName) list = list.filter(r => (r.name||"").toLowerCase().includes(qName));
@@ -141,12 +144,12 @@ function sameDay(a, b) {
 }
 
 function refreshTeamListForSelectedDate() {
-  const ul = document.querySelector("#teamList");
+  const ul = $("#teamList");
   ul.innerHTML = "";
-  const qDateVal = document.querySelector("#qDate").value;
+  const qDateVal = $("#qDate").value;
   if (!qDateVal) {
     const li = document.createElement("li");
-    li.textContent = "Choisis un jour pour voir l'équipe.";
+    li.textContent = "Wähle ein Datum, um das Team zu sehen.";
     ul.appendChild(li);
     return;
   }
@@ -154,7 +157,7 @@ function refreshTeamListForSelectedDate() {
   const dayRows = ALL.filter(r => r.startDt && sameDay(r.startDt, d));
   if (!dayRows.length) {
     const li = document.createElement("li");
-    li.textContent = "Aucune garde ce jour.";
+    li.textContent = "Keine Dienste an diesem Tag.";
     ul.appendChild(li);
     return;
   }
@@ -174,19 +177,19 @@ function groupBy(arr, fn) {
   }, {});
 }
 
-// ====== Événements UI ======
-document.querySelector("#btnFilter").addEventListener("click", applyFilters);
-document.querySelector("#btnReset").addEventListener("click", () => {
-  document.querySelector("#qName").value = "";
-  document.querySelector("#qType").value = "";
-  document.querySelector("#qDate").value = "";
+// ====== UI-Events ======
+$("#btnFilter").addEventListener("click", applyFilters);
+$("#btnReset").addEventListener("click", () => {
+  $("#qName").value = "";
+  $("#qType").value = "";
+  $("#qDate").value = "";
   render(ALL);
   refreshTeamListForSelectedDate();
 });
-document.querySelector("#qDate").addEventListener("change", refreshTeamListForSelectedDate);
+$("#qDate").addEventListener("change", refreshTeamListForSelectedDate);
 
 // Auto-Load
 loadData().catch(err => {
   console.error(err);
-  alert("Erreur de chargement CSV. Vérifie l'URL dans config.js");
+  alert("Fehler beim Laden der CSV. Bitte URL in config.js prüfen.");
 });
