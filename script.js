@@ -1,5 +1,5 @@
 /*********** CONFIG ***********/
-const WEBAPP_URL = "https://script.google.com/macros/s/TON_ID/exec"; // <- remplace par l’URL de ta Web App
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwDf-FXWlnztoK6DlXLKljOilQsRNVQSC-lnp7WGl5VUFOLsOK98wxNS5ufP_0_XjGp/exec"; // <- remplace par l’URL de ta Web App
 
 /*********** HELPERS **********/
 const $ = (sel) => document.querySelector(sel);
