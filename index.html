@@ -1,13 +1,15 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>Dienstplan</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dienstplan Online</title>
+  <link rel="stylesheet" href="style.css" />
 
   <!-- FullCalendar + PapaParse -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -15,52 +17,73 @@
     <h1>📅 Dienstplan</h1>
   </header>
 
-  <section class="container">
-    <div class="card">
-      <label for="searchName">👤 Nach Name suchen:</label>
-      <input type="text" id="searchName" placeholder="Name eingeben...">
-      
-      <label for="searchCode">🔎 Schicht:</label>
-      <select id="searchCode">
-        <option value="">Alle</option>
-        <option value="FR">Frühschicht</option>
-        <option value="SP">Spätschicht</option>
-        <option value="NA">Nachtschicht</option>
-        <option value="U">Urlaub</option>
-        <option value="F">Frei</option>
+  <!-- Filter -->
+  <section class="card">
+    <div class="row">
+      <label>Name</label>
+      <input id="qName" type="text" placeholder="Name suchen…" />
+      <label>Dienst</label>
+      <select id="qType">
+        <option value="">(Alle)</option>
+        <option value="Frühschicht">Frühschicht</option>
+        <option value="Spätschicht">Spätschicht</option>
+        <option value="Nachtschicht">Nachtschicht</option>
+        <option value="Urlaub">Urlaub</option>
+        <option value="Frei">Frei</option>
       </select>
+      <label>Datum</label>
+      <input id="qDate" type="date" />
+      <button id="btnFilter">Filtern</button>
+      <button id="btnReset" class="secondary">Zurücksetzen</button>
+    </div>
+    <div class="row">
+      <button id="btnShowList" class="secondary">Liste</button>
+      <button id="btnShowCal">Kalender</button>
     </div>
   </section>
 
-  <section class="container">
-    <button id="btnList">Liste</button>
-    <button id="btnCalendar">Kalender</button>
-  </section>
-
-  <section id="listView" class="container">
-    <table>
-      <thead>
-        <tr><th>Datum</th><th>Start</th><th>Ende</th><th>Name</th><th>Code</th></tr>
-      </thead>
-      <tbody id="tableBody"></tbody>
-    </table>
-  </section>
-
-  <section id="calendarView" class="container" style="display:none">
+  <!-- Kalender -->
+  <section id="calendarSection" class="card" style="display:none;">
     <div id="calendar"></div>
   </section>
 
-  <section class="container">
-    <h2>Wünsche</h2>
-    <form id="wunschForm">
-      <input type="text" id="reqName" placeholder="Ihr Name" required>
-      <input type="date" id="reqDate" required>
-      <input type="text" id="reqNote" placeholder="Bemerkung">
-      <button type="submit">Absenden</button>
-    </form>
-    <ul id="requestList"></ul>
+  <!-- Liste -->
+  <section id="listSection" class="grid">
+    <div class="card">
+      <h2>Team des Tages</h2>
+      <ul id="teamList" style="margin:0;padding-left:18px;"></ul>
+    </div>
+    <div class="card">
+      <h2>Ergebnisse</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th><th>Beginn</th><th>Ende</th><th>Name</th><th>Dienst</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
   </section>
 
+  <!-- Wünsche -->
+  <section class="card">
+    <h2>Wunsch (Dienst abgeben / tauschen)</h2>
+    <div class="row">
+      <input id="wName" type="text" placeholder="Dein Name" />
+      <input id="wDate" type="date" />
+      <input id="wNote" type="text" placeholder="Bemerkung (optional)" />
+      <button id="wSend">Anfrage senden</button>
+    </div>
+    <h3>Offene Anfragen</h3>
+    <ul id="wList" style="margin:0;padding-left:18px;"></ul>
+  </section>
+
+  <footer>
+    <p style="text-align:center;font-size:0.9em;color:#666;">© 2025 Dienstplan Online</p>
+  </footer>
+
+  <!-- Konfiguration + Skript -->
   <script src="config.js"></script>
   <script src="script.js"></script>
 </body>
