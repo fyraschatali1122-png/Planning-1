@@ -1,13 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dienstplan Online</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dienstplan (Einfach)</title>
 
-  <!-- FullCalendar + PapaParse -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
+  <!-- Styles rapides -->
+  <style>
+    body{margin:0;background:#0f172a;color:#e5e7eb;font:16px/1.5 system-ui,Segoe UI,Roboto}
+    header,section{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0 0 8px}.muted{color:#9aa3b2}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:12px;padding:14px}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    input,select,button{padding:10px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+    button{background:#0ea5e9;border:0;cursor:pointer}button.secondary{background:#334155}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px;border-bottom:1px solid #1f2937;text-align:left}
+    #calendar .fc{height:700px}
+    #status{white-space:pre-wrap}
+  </style>
+
+  <!-- FullCalendar + locales + PapaParse -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -15,11 +29,15 @@
 <body>
   <header>
     <h1>📅 Dienstplan</h1>
+    <p class="muted">Quelle: Google Sheet (CSV veröffentlicht)</p>
   </header>
 
-  <!-- Filter -->
+  <!-- Statut / erreurs -->
+  <section><div id="status" class="card" style="display:none"></div></section>
+
+  <!-- Filtres + boutons -->
   <section class="card">
-    <div class="row">
+    <div class="row" style="margin-bottom:8px">
       <label>Name</label>
       <input id="qName" type="text" placeholder="Name suchen…" />
       <label>Dienst</label>
@@ -48,25 +66,17 @@
   </section>
 
   <!-- Liste -->
-  <section id="listSection" class="grid">
-    <div class="card">
-      <h2>Team des Tages</h2>
-      <ul id="teamList" style="margin:0;padding-left:18px;"></ul>
-    </div>
-    <div class="card">
-      <h2>Ergebnisse</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Datum</th><th>Beginn</th><th>Ende</th><th>Name</th><th>Dienst</th>
-          </tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </div>
+  <section id="listSection" class="card">
+    <h2>Ergebnisse</h2>
+    <table>
+      <thead><tr><th>Datum</th><th>Beginn</th><th>Ende</th><th>Name</th><th>Code</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <h3>Team des Tages</h3>
+    <ul id="teamList" style="margin:0;padding-left:18px;"></ul>
   </section>
 
-  <!-- Wünsche -->
+  <!-- Wünsche (optionnel – ne s’active que si WEBAPP_URL est rempli) -->
   <section class="card">
     <h2>Wunsch (Dienst abgeben / tauschen)</h2>
     <div class="row">
@@ -79,12 +89,185 @@
     <ul id="wList" style="margin:0;padding-left:18px;"></ul>
   </section>
 
-  <footer>
-    <p style="text-align:center;font-size:0.9em;color:#666;">© 2025 Dienstplan Online</p>
-  </footer>
+  <script>
+  /********* 1) CONFIG — remplis juste ceci *********/
+  const CSV_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTOuHwb0HGELAZhFI3d4vrmWxevqbwwzPgTIOD8TIGII_x7oSsJleuGLdX4cYb5V373IX_Rn1RPrh_Q/pub?gid=569786249&single=true&output=csv";  // <- Mets ton lien CSV publié
+  const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxs_o6HnMxspArytzqfGofXnxvxryRBnrcrS6-zrfmcFVF3hEV-GzS30RV249hbXC3ewg/exec"; // optionnel (Apps Script /exec) pour les Wünsche
 
-  <!-- Konfiguration + Skript -->
-  <script src="config.js"></script>
-  <script src="script.js"></script>
+  /********* Helpers *********/
+  const $ = s => document.querySelector(s);
+  function showStatus(msg){ const b=$("#status"); b.style.display=''; b.textContent=msg; }
+  function hideStatus(){ const b=$("#status"); b.style.display='none'; b.textContent=""; }
+  function padTime(t){ if(!t) return ""; const p=String(t).split(":"); return (p[0]||"").padStart(2,"0")+":"+((p[1]||"00").padStart(2,"0")); }
+  function mapCode(code){
+    const c=String(code||"").toUpperCase().trim();
+    if(c==="EF"||c==="FN") return "Frühschicht";
+    if(c==="ES"||c==="SN") return "Spätschicht";
+    if(c==="K2N"||c==="AK2"||c==="AKN") return "Nachtschicht";
+    if(c==="U"||c==="O") return "Urlaub";
+    if(c==="AV") return "Frei";
+    return c || "";
+  }
+  function sameDay(a,b){ return a.getFullYear()==b.getFullYear()&&a.getMonth()==b.getMonth()&&a.getDate()==b.getDate(); }
+
+  /********* 2) Données *********/
+  let ALL = [];
+  let calendar = null;
+
+  async function loadData(){
+    if(!CSV_URL || !CSV_URL.includes("output=csv")){
+      showStatus("⚠️ CSV_URL manquant ou invalide. Mets l’URL publié (output=csv).");
+      return;
+    }
+    showStatus("⏳ CSV wird geladen…");
+    const res = await fetch(CSV_URL, { cache:"no-store" }).catch(()=>null);
+    if(!res || !res.ok){
+      showStatus("❌ CSV nicht erreichbar. Prüfe den Link (Veröffentlichen → CSV).");
+      return;
+    }
+    const text = await res.text();
+
+    // PapaParse — header tolérant ; ou , et casse
+    const parsed = Papa.parse(text, { header:true, skipEmptyLines:true });
+    const rows = parsed.data;
+
+    const key = (o, wanted) => Object.keys(o).find(k => k && k.toLowerCase().trim() === wanted.toLowerCase().trim()) || null;
+
+    ALL = rows.map(r=>{
+      const kDate  = key(r,"date")  || key(r,"datum");
+      const kStart = key(r,"start") || key(r,"beginn");
+      const kEnd   = key(r,"end")   || key(r,"ende");
+      const kName  = key(r,"name");
+      const kCode  = key(r,"code") || key(r,"dienst");
+
+      const date  = kDate  ? String(r[kDate]).trim()  : "";
+      const start = kStart ? padTime(String(r[kStart]).trim()) : "";
+      const end   = kEnd   ? padTime(String(r[kEnd]).trim())   : "";
+      const name  = kName  ? String(r[kName]).trim()  : "";
+      const code  = kCode  ? String(r[kCode]).trim()  : "";
+
+      const schicht = mapCode(code);
+      const startDt = start ? new Date(`${date}T${start}`) : null;
+      let   endDt   = end   ? new Date(`${date}T${end}`)   : null;
+      if(startDt && endDt && endDt<=startDt) endDt = new Date(endDt.getTime()+24*3600*1000);
+
+      return { date,start,end,name,code:code||schicht,schicht,startDt,endDt };
+    }).filter(x => x.name && x.date);
+
+    hideStatus();
+    applyFilters(); // rend la liste + calendrier en même temps
+  }
+
+  /********* 3) Rendu Liste *********/
+  function renderList(list){
+    const tb=$("#tbody"); tb.innerHTML="";
+    list.slice().sort((a,b)=>(a.startDt?.getTime()||0)-(b.startDt?.getTime()||0)||a.name.localeCompare(b.name)).forEach(r=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML=`<td>${r.date}</td><td>${r.start||""}</td><td>${r.end||""}</td><td>${r.name}</td><td>${r.code||""}</td>`;
+      tb.appendChild(tr);
+    });
+
+    // Team des Tages
+    const ul=$("#teamList"); ul.innerHTML="";
+    const val=$("#qDate").value;
+    if(val){
+      const d=new Date(val);
+      const day=list.filter(r=> r.startDt ? sameDay(r.startDt,d) : (r.date===val));
+      if(!day.length){ ul.innerHTML="<li>Keine Dienste an diesem Tag.</li>"; return; }
+      const byType = day.reduce((acc,r)=>{ (acc[r.schicht||"-"] ||= []).push(r.name); return acc; },{});
+      Object.keys(byType).sort().forEach(k=>{
+        const li=document.createElement("li"); li.textContent=`${k}: ${[...new Set(byType[k])].sort().join(", ")}`;
+        ul.appendChild(li);
+      });
+    }
+  }
+
+  /********* 4) Rendu Calendrier *********/
+  function buildEvents(list){
+    return list.map(r=>{
+      const title = `${r.name} (${r.code||""})`;
+      if(!r.startDt) return { title, start:r.date, allDay:true };
+      const evt = { title, start:r.startDt.toISOString() };
+      if(r.endDt && !isNaN(r.endDt)) evt.end = r.endDt.toISOString();
+      return evt;
+    });
+  }
+  function renderCalendar(list){
+    const el=$("#calendar");
+    const events=buildEvents(list);
+    if(!calendar){
+      calendar = new FullCalendar.Calendar(el, {
+        initialView:'dayGridMonth',
+        locale:'de',
+        firstDay:1,
+        headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,timeGridDay' },
+        events
+      });
+      calendar.render();
+    }else{
+      calendar.removeAllEvents();
+      calendar.addEventSource(events);
+      calendar.render();
+    }
+  }
+
+  /********* 5) Filtres *********/
+  function applyFilters(){
+    const qName=$("#qName").value.trim().toLowerCase();
+    const qType=$("#qType").value;
+    const qDate=$("#qDate").value;
+
+    let list=ALL;
+    if(qName) list=list.filter(r => (r.name||"").toLowerCase().includes(qName));
+    if(qType) list=list.filter(r => r.schicht===qType || r.code===qType);
+    if(qDate){
+      const d=new Date(qDate);
+      list=list.filter(r => r.startDt ? sameDay(r.startDt,d) : (r.date===qDate));
+    }
+    renderList(list);
+    if($("#calendarSection").style.display!=="none") renderCalendar(list);
+  }
+
+  /********* 6) Wünsche (facultatif) *********/
+  async function loadRequests(){
+    if(!WEBAPP_URL) return;
+    try{
+      const r = await fetch(`${WEBAPP_URL}?action=requests`);
+      const data = await r.json();
+      const items = Array.isArray(data) ? data : (data.ok ? (data.items||[]) : []);
+      const ul=$("#wList"); ul.innerHTML="";
+      items.filter(it => (String(it.status||"").toLowerCase()==="open")).forEach(it=>{
+        const li=document.createElement("li");
+        li.textContent = `${String(it.date).slice(0,10)} – ${it.name}${it.note?` (${it.note})`:""}`;
+        ul.appendChild(li);
+      });
+    }catch(e){ console.error(e); }
+  }
+  async function createRequest(){
+    if(!WEBAPP_URL){ alert("Wunsch-System nicht aktiviert."); return; }
+    const name=$("#wName").value.trim();
+    const date=$("#wDate").value;
+    const note=$("#wNote").value.trim();
+    if(!name||!date){ alert("Name und Datum sind erforderlich."); return; }
+    const resp = await fetch(WEBAPP_URL, {
+      method:"POST", headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ action:"create", name, date, note })
+    }).then(r=>r.json()).catch(()=>null);
+    if(!resp || resp.ok===false){ alert("Fehler beim Senden der Anfrage."); return; }
+    $("#wName").value=""; $("#wDate").value=""; $("#wNote").value="";
+    loadRequests();
+  }
+
+  /********* 7) Événements UI *********/
+  document.getElementById("btnFilter").addEventListener("click", applyFilters);
+  document.getElementById("btnReset").addEventListener("click", ()=>{ $("#qName").value=""; $("#qType").value=""; $("#qDate").value=""; applyFilters(); });
+  document.getElementById("btnShowCal").addEventListener("click", ()=>{ $("#calendarSection").style.display=""; $("#listSection").style.display="none"; renderCalendar(ALL); });
+  document.getElementById("btnShowList").addEventListener("click", ()=>{ $("#calendarSection").style.display="none"; $("#listSection").style.display=""; });
+  document.getElementById("wSend").addEventListener("click", createRequest);
+
+  /********* 8) Go *********/
+  loadData();
+  loadRequests();
+  </script>
 </body>
 </html>
