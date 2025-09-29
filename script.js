@@ -1,20 +1,98 @@
-// ====== Helfer ======
+/*********** CONFIG ***********/
+const WEBAPP_URL = "https://script.google.com/macros/s/TON_ID/exec"; // <- remplace par l’URL de ta Web App
+
+/*********** HELPERS **********/
 const $ = (sel) => document.querySelector(sel);
 
-function parseCSV(text) {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(Boolean);
-  if (!lines.length) return [];
+function mapCode(code) {
+  if (!code) return "";
+  const c = (code || "").toUpperCase().trim();
+  if (c === "ES" || c === "SN") return "Spätschicht";
+  if (c === "EF" || c === "FN") return "Frühschicht";
+  if (c === "K2N" || c === "AK2" || c === "AKN") return "Nachtschicht";
+  if (c === "U" || c === "O") return "Urlaub";
+  if (c === "AV") return "Frei";
+  return c;
+}
+function padTime(t){
+  if (!t) return "";
+  const parts = String(t).split(":").map(s => s.trim());
+  if (!parts[0]) return "";
+  const hh = parts[0].padStart(2,"0");
+  const mm = (parts[1] ? parts[1].padStart(2,"0") : "00");
+  return `${hh}:${mm}`;
+}
+function sameDay(a, b) {
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+function badgeClass(s) {
+  switch (s) {
+    case "Frühschicht":  return "badge badge--frueh";
+    case "Spätschicht":  return "badge badge--spaet";
+    case "Nachtschicht": return "badge badge--nacht";
+    case "Urlaub":       return "badge badge--urlaub";
+    case "Frei":         return "badge badge--frei";
+    default:             return "badge";
+  }
+}
+
+/*********** STATE ************/
+let ALL = [];     // lignes du CSV {date,start,end,name,code,schicht,startDt,endDt}
+let calendar = null;
+
+/*********** CSV LOAD *********/
+async function loadData(){
+  if (!CSV_URL || CSV_URL.includes("REMPLACE_MOI")) {
+    alert("⚠️ Bitte zuerst CSV_URL in config.js eintragen (Google Sheet → Veröffentlichen als CSV).");
+    return;
+  }
+  const res = await fetch(CSV_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`CSV laden fehlgeschlagen (HTTP ${res.status})`);
+  const text = await res.text();
+
+  // Parse simple CSV (virgule) – Google publie en virgule
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter(l => l.trim().length>0);
   const header = splitCsvLine(lines[0]);
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
     const parts = splitCsvLine(lines[i]);
-    if (!parts.length) continue;
     const obj = {};
     header.forEach((h, idx) => obj[h.trim()] = (parts[idx] ?? "").trim());
     rows.push(obj);
   }
-  return rows;
+
+  const getKey = (obj, wanted) => {
+    const w = wanted.toLowerCase().trim();
+    const k = Object.keys(obj).find(x => x && x.toLowerCase().trim() === w);
+    return k ?? null;
+  };
+
+  ALL = rows.map(r=>{
+    const kDate  = getKey(r,"Date")  || getKey(r,"Datum");
+    const kStart = getKey(r,"Start") || getKey(r,"Beginn");
+    const kEnd   = getKey(r,"End")   || getKey(r,"Ende");
+    const kName  = getKey(r,"Name");
+    const kCode  = getKey(r,"Code");
+
+    const date  = kDate  ? String(r[kDate]).trim()  : "";
+    const start = kStart ? padTime(String(r[kStart]).trim()) : "";
+    const end   = kEnd   ? padTime(String(r[kEnd]).trim())   : "";
+    const name  = kName  ? String(r[kName]).trim()  : "";
+    const code  = kCode  ? String(r[kCode]).trim()  : "";
+
+    const schicht = mapCode(code);
+    const startDt = start ? new Date(`${date}T${start}`) : null;
+    let   endDt   = end   ? new Date(`${date}T${end}`)   : null;
+    if (startDt && endDt && endDt <= startDt) endDt = new Date(endDt.getTime() + 24*3600*1000);
+
+    return { date, start, end, name, code, schicht, startDt, endDt };
+  }).filter(x => x.name && x.date);
+
+  renderList(ALL);
+  refreshTeamListForSelectedDate();
 }
+
+/* Mini CSV splitter qui respecte les guillemets */
 function splitCsvLine(line) {
   const out = [];
   let cur = "", inQ = false;
@@ -28,70 +106,51 @@ function splitCsvLine(line) {
   return out.map(s => s.replace(/^"(.*)"$/, '$1'));
 }
 
-function mapCode(code) {
-  if (!code) return "";
-  const c = (code || "").toUpperCase().trim();
-  if (c === "ES" || c === "SN") return "Spätschicht";
-  if (c === "EF" || c === "FN") return "Frühschicht";
-  if (c === "K2N" || c === "AK2" || c === "AKN") return "Nachtschicht";
-  if (c === "U" || c === "O") return "Urlaub";
-  if (c === "AV") return "Frei";
-  return c;
-}
-function defaultTimesForCode(code) {
-  const c = (code || "").toUpperCase();
-  if (c === "EF" || c === "FN") return { start: "06:00", end: "14:00" }; // Früh
-  if (c === "ES" || c === "SN") return { start: "14:00", end: "22:00" }; // Spät
-  if (c === "K2N" || c === "AK2" || c === "AKN") return { start: "22:00", end: "06:00" }; // Nacht
-  if (c === "U" || c === "O" || c === "AV") return { start: "", end: "" }; // Urlaub/Frei
-  return { start: "", end: "" };
-}
-
-function colorForSchicht(s) {
-  switch (s) {
-    case "Frühschicht":  return "#36d17a";
-    case "Spätschicht":  return "#ff9f3a";
-    case "Nachtschicht": return "#9b6dff";
-    case "Urlaub":       return "#5bb4ff";
-    case "Frei":         return "#c3c8d4";
-    default:             return "#5b9fff";
-  }
+/*********** LIST RENDER *********/
+function renderList(list){
+  const tb = $("#tbody");
+  tb.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  list
+    .slice()
+    .sort((a,b)=> (a.startDt?.getTime()||0) - (b.startDt?.getTime()||0) || a.name.localeCompare(b.name))
+    .forEach(row => {
+      const tr = document.createElement("tr");
+      const tdDate = document.createElement("td");
+      const tdStart = document.createElement("td");
+      const tdEnd = document.createElement("td");
+      const tdName = document.createElement("td");
+      const tdSchicht = document.createElement("td");
+      tdDate.textContent = row.date;
+      tdStart.textContent = row.start || "";
+      tdEnd.textContent = row.end || "";
+      tdName.textContent = row.name;
+      tdSchicht.innerHTML = `<span class="${badgeClass(row.schicht)}"><span class="dot"></span>${row.schicht||""}</span>`;
+      tr.append(tdDate, tdStart, tdEnd, tdName, tdSchicht);
+      frag.appendChild(tr);
+    });
+  tb.appendChild(frag);
 }
 
-let calendar; // instance FullCalendar
-
-function buildCalendarEvents(data) {
+/*********** CALENDAR **********/
+function buildCalendarEvents(data){
   const events = [];
-  data.forEach(row => {
-    const sch = row.schicht || mapCode(row.code) || "";
-    const { start: defS, end: defE } = defaultTimesForCode(row.code);
-    const startStr = (row.start && row.start.trim()) || defS;
-    const endStr   = (row.end && row.end.trim())   || defE;
-    const dateISO = row.date;
-
-    if (!startStr || !endStr) {
-      events.push({ title: `${row.name} (${row.code})`, start: dateISO, allDay: true, color: colorForSchicht(sch) });
+  data.forEach(r => {
+    const title = `${r.name} (${r.code})`;
+    if (!r.startDt) {
+      events.push({ title, start: r.date, allDay: true });
       return;
     }
-    const sDate = new Date(`${dateISO}T${startStr}`);
-    let eDate = new Date(`${dateISO}T${endStr}`);
-    if (eDate <= sDate) eDate = new Date(eDate.getTime() + 24 * 3600 * 1000); // nuit -> lendemain
-
-    events.push({
-      title: `${row.name} (${row.code})`,
-      start: sDate.toISOString(),
-      end: eDate.toISOString(),
-      color: colorForSchicht(sch)
-    });
+    const evt = { title, start: r.startDt.toISOString() };
+    if (r.endDt && !isNaN(r.endDt)) evt.end = r.endDt.toISOString();
+    events.push(evt);
   });
   return events;
 }
-
-function renderCalendar(data) {
-  const events = buildCalendarEvents(data);
+function renderCalendar(data){
   const el = document.getElementById('calendar');
   if (!el) return;
-
+  const events = buildCalendarEvents(data);
   if (calendar) {
     calendar.removeAllEvents();
     calendar.addEventSource(events);
@@ -107,145 +166,26 @@ function renderCalendar(data) {
   });
   calendar.render();
 }
-function defaultTimesForCode(code) {
-  const c = (code || "").toUpperCase();
-  if (c === "EF" || c === "FN") return { start: "06:00", end: "14:00" }; // Früh
-  if (c === "ES" || c === "SN") return { start: "14:00", end: "22:00" }; // Spät
-  if (c === "K2N" || c === "AK2" || c === "AKN") return { start: "22:00", end: "06:00" }; // Nacht
 
-function toDateISO(d) {
-  const dt = new Date(d);
-  if (isNaN(dt)) return null;
-  return dt;
-}
-function combineDateTime(dateStr, timeStr) {
-  const d = toDateISO(dateStr);
-  if (!d) return null;
-  const [hh, mm] = (timeStr || "").split(":").map(x => parseInt(x,10));
-  if (Number.isInteger(hh) && Number.isInteger(mm)) {
-    d.setHours(hh, mm, 0, 0);
-  }
-  return d;
-}
-function fmt(d, opts) {
-  if (!d) return "";
-  try {
-    return new Intl.DateTimeFormat('de-DE', opts || {}).format(d);
-  } catch {
-    return d.toLocaleString();
-  }
-}
-// ====== Zustand ======
-let ALL = []; // {date, start, end, name, code, schicht, startDt, endDt}
-
-// ====== Laden ======
-async function loadData() {
-  if (!CSV_URL || CSV_URL.startsWith("REMPLACE_MOI")) {
-    alert("⚠️ Bitte zuerst CSV_URL in config.js eintragen (Google Sheet → Veröffentlichen als CSV).");
-    return;
-  }
-  const res = await fetch(CSV_URL, { cache: "no-store" });
-  if (!res.ok) {
-    throw new Error(`CSV laden fehlgeschlagen (HTTP ${res.status})`);
-  }
-  const text = await res.text();
-  const rows = parseCSV(text);
-
-  const mapKey = (obj, key) => {
-    const k = Object.keys(obj).find(k => k.toLowerCase() === key.toLowerCase());
-    return k ? obj[k] : "";
-  };
-
-  ALL = rows.map(r => {
-    const date = mapKey(r, "Date");
-    const start = mapKey(r, "Start");
-    const end = mapKey(r, "End");
-    const name = mapKey(r, "Name");
-    const code = mapKey(r, "Code");
-    const schicht = mapCode(code);
-    const startDt = combineDateTime(date, start);
-    const endDt = combineDateTime(date, end);
-    return { date, start, end, name, code, schicht, startDt, endDt };
-  }).filter(x => x.name && x.date);
-
-  render(ALL);
-  refreshTeamListForSelectedDate();
-}
-function iconForSchicht(s) {
-  switch (s) {
-    case "Frühschicht":  return "🌅";
-    case "Spätschicht":  return "🌇";
-    case "Nachtschicht": return "🌙";
-    case "Urlaub":       return "🏖️";
-    case "Frei":         return "⏸️";
-    default:             return "🗓️";
-  }
-}
-
-function classForSchicht(s) {
-  switch (s) {
-    case "Frühschicht":  return "badge--frueh";
-    case "Spätschicht":  return "badge--spaet";
-    case "Nachtschicht": return "badge--nacht";
-    case "Urlaub":       return "badge--urlaub";
-    case "Frei":         return "badge--frei";
-    default:             return "";
-  }
-}
-function render(list) {
-  const tb = $("#tbody");
-  tb.innerHTML = "";
-  const frag = document.createDocumentFragment();
-  list
-    .slice()
-    .sort((a,b)=> (a.startDt?.getTime()||0) - (b.startDt?.getTime()||0) || a.name.localeCompare(b.name))
-    .forEach(row => {
-      const tr = document.createElement("tr");
-      const tdDate = document.createElement("td");
-      const tdStart = document.createElement("td");
-      const tdEnd = document.createElement("td");
-      const tdName = document.createElement("td");
-      const tdSchicht = document.createElement("td");
-      tdDate.textContent = fmt(row.startDt || toDateISO(row.date), { year: 'numeric', month: '2-digit', day:'2-digit' }) || row.date;
-      tdStart.textContent = row.start || (row.startDt ? fmt(row.startDt,{hour:'2-digit',minute:'2-digit'}) : "");
-      tdEnd.textContent = row.end || (row.endDt ? fmt(row.endDt,{hour:'2-digit',minute:'2-digit'}) : "");
-      tdName.textContent = row.name;
-      const sch = row.schicht || mapCode(row.code) || "";
-const badgeCls = classForSchicht(sch);
-const emoji = iconForSchicht(sch);
-tdSchicht.innerHTML = sch
-  ? `<span class="badge ${badgeCls}"><span class="dot"></span>${emoji} ${sch}</span>`
-  : "";
-      tr.append(tdDate, tdStart, tdEnd, tdName, tdSchicht);
-      frag.appendChild(tr);
-    });
-  tb.appendChild(frag);
-}
-  // si la vue calendrier est affichée, on met aussi à jour le calendrier
-if (document.getElementById('calendarSection').style.display !== 'none') {
-  renderCalendar(list);
-}
-
+/*********** FILTERS **********/
 function applyFilters() {
   const qName = $("#qName").value.trim().toLowerCase();
   const qType = $("#qType").value;
-  const qDateVal = $("#qDate").value; // yyyy-mm-dd
+  const qDateVal = $("#qDate").value;
 
   let list = ALL;
   if (qName) list = list.filter(r => (r.name||"").toLowerCase().includes(qName));
   if (qType) list = list.filter(r => r.schicht === qType);
   if (qDateVal) {
     const d = new Date(qDateVal);
-    list = list.filter(r => r.startDt && sameDay(r.startDt, d));
+    list = list.filter(r => r.startDt ? sameDay(r.startDt, d) : (r.date === qDateVal));
   }
-  render(list);
+  renderList(list);
   refreshTeamListForSelectedDate();
+  if (document.getElementById("calendarSection").style.display !== "none") {
+    renderCalendar(list);
+  }
 }
-
-function sameDay(a, b) {
-  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-}
-
 function refreshTeamListForSelectedDate() {
   const ul = $("#teamList");
   ul.innerHTML = "";
@@ -257,53 +197,103 @@ function refreshTeamListForSelectedDate() {
     return;
   }
   const d = new Date(qDateVal);
-  const dayRows = ALL.filter(r => r.startDt && sameDay(r.startDt, d));
+  const dayRows = ALL.filter(r => r.startDt ? sameDay(r.startDt, d) : (r.date===qDateVal));
   if (!dayRows.length) {
     const li = document.createElement("li");
     li.textContent = "Keine Dienste an diesem Tag.";
     ul.appendChild(li);
     return;
   }
-  const byType = groupBy(dayRows, r => r.schicht || mapCode(r.code) || "—");
+  const byType = dayRows.reduce((acc, r) => {
+    const k = r.schicht || "-";
+    (acc[k] ||= []).push(r.name);
+    return acc;
+  }, {});
   Object.keys(byType).sort().forEach(k => {
-    const names = [...new Set(byType[k].map(x => x.name))].sort().join(", ");
+    const names = [...new Set(byType[k])].sort().join(", ");
     const li = document.createElement("li");
     li.textContent = `${k}: ${names}`;
     ul.appendChild(li);
   });
 }
-function groupBy(arr, fn) {
-  return arr.reduce((acc, x) => {
-    const k = fn(x);
-    (acc[k] ||= []).push(x);
-    return acc;
-  }, {});
+
+/*********** WUNSCH (Requests) **********/
+async function loadRequests(){
+  if (!WEBAPP_URL || WEBAPP_URL.includes("TON_ID")) return; // éviter erreur si pas encore déployé
+  try{
+    const r = await fetch(`${WEBAPP_URL}?action=requests`, { cache:"no-store" });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.error || "Fehler");
+    const ul = document.getElementById("wList");
+    ul.innerHTML = "";
+    data.items.forEach(it => {
+      const li = document.createElement("li");
+      li.innerHTML = `<strong>${it.date}</strong> – ${it.name} ${it.note ? `<em>(${it.note})</em>` : ""}
+        <button data-id="${it.id}" class="btn-accept">Akzeptieren</button>`;
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll(".btn-accept").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const accepter = prompt("Dein Name, um zu akzeptieren:");
+        if (!accepter) return;
+        const resp = await fetch(WEBAPP_URL, {
+          method:"POST",
+          headers:{ "Content-Type":"application/json" },
+          body: JSON.stringify({ action:"accept", request_id: btn.dataset.id, accepter_name: accepter })
+        }).then(r=>r.json());
+        if (!resp.ok) { alert("Fehler: " + (resp.error||"")); return; }
+        alert("Übernommen! Plan wird aktualisiert.");
+        await loadRequests();
+        await loadData(); // recharge le planning
+      });
+    });
+  }catch(e){
+    console.error(e);
+  }
 }
 
-// ====== UI-Events ======
+async function createRequest(){
+  if (!WEBAPP_URL || WEBAPP_URL.includes("TON_ID")) { alert("Backend (Web App) noch nicht konfiguriert."); return; }
+  const name = document.getElementById("wName").value.trim();
+  const date = document.getElementById("wDate").value;
+  const note = document.getElementById("wNote").value.trim();
+  if (!name || !date) { alert("Name und Datum sind erforderlich."); return; }
+  const resp = await fetch(WEBAPP_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ action:"create", name, date, note })
+  }).then(r=>r.json());
+  if (!resp.ok) { alert("Fehler: " + (resp.error||"")); return; }
+  document.getElementById("wName").value = "";
+  document.getElementById("wDate").value = "";
+  document.getElementById("wNote").value = "";
+  await loadRequests();
+}
+
+/*********** UI BINDINGS **********/
 $("#btnFilter").addEventListener("click", applyFilters);
 $("#btnReset").addEventListener("click", () => {
-  $("#qName").value = "";
-  $("#qType").value = "";
-  $("#qDate").value = "";
-  render(ALL);
-  refreshTeamListForSelectedDate();
+  $("#qName").value = ""; $("#qType").value = ""; $("#qDate").value = "";
+  renderList(ALL); refreshTeamListForSelectedDate();
+  if (document.getElementById("calendarSection").style.display !== "none") renderCalendar(ALL);
 });
 $("#qDate").addEventListener("change", refreshTeamListForSelectedDate);
 
-// Auto-Load
+document.getElementById('btnShowCal').addEventListener('click', () => {
+  document.getElementById('calendarSection').style.display = '';
+  document.getElementById('listSection').style.display = 'none';
+  renderCalendar(ALL);
+});
+document.getElementById('btnShowList').addEventListener('click', () => {
+  document.getElementById('calendarSection').style.display = 'none';
+  document.getElementById('listSection').style.display = '';
+});
+
+document.getElementById('wSend').addEventListener('click', createRequest);
+
+/*********** START **********/
 loadData().catch(err => {
   console.error(err);
   alert("Fehler beim Laden der CSV. Bitte URL in config.js prüfen.");
 });
-
-document.getElementById('btnShowCal').addEventListener('click', () => {
-  document.getElementById('calendarSection').style.display = '';
-  document.querySelector('.grid-wrap').style.display = 'none';
-  renderCalendar(ALL); // ou la liste filtrée si tu veux
-});
-
-document.getElementById('btnShowList').addEventListener('click', () => {
-  document.getElementById('calendarSection').style.display = 'none';
-  document.querySelector('.grid-wrap').style.display = '';
-});
+loadRequests();
