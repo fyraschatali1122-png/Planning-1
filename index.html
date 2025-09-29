@@ -1,120 +1,67 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
   <title>Dienstplan</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css">
 
-  <!-- FullCalendar -->
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales-all.global.min.js"></script>
-
+  <!-- FullCalendar + PapaParse -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <header class="container">
-    <h1>Dienstplan</h1>
-    <p class="muted">Quelle: veröffentlichtes Google Sheet als CSV (in <code>config.js</code> konfiguriert)</p>
+  <header>
+    <h1>📅 Dienstplan</h1>
   </header>
 
-  <!-- Filtres -->
-  <section class="container controls">
-    <div class="row">
-      <label>Name</label>
-      <input id="qName" type="text" placeholder="Name suchen…" />
-    </div>
-    <div class="row">
-      <label>Dienst</label>
-      <select id="qType">
-        <option value="">(Alle)</option>
-        <option value="Frühschicht">Frühschicht</option>
-        <option value="Spätschicht">Spätschicht</option>
-        <option value="Nachtschicht">Nachtschicht</option>
-        <option value="Urlaub">Urlaub</option>
-        <option value="Frei">Frei</option>
+  <section class="container">
+    <div class="card">
+      <label for="searchName">👤 Nach Name suchen:</label>
+      <input type="text" id="searchName" placeholder="Name eingeben...">
+      
+      <label for="searchCode">🔎 Schicht:</label>
+      <select id="searchCode">
+        <option value="">Alle</option>
+        <option value="FR">Frühschicht</option>
+        <option value="SP">Spätschicht</option>
+        <option value="NA">Nachtschicht</option>
+        <option value="U">Urlaub</option>
+        <option value="F">Frei</option>
       </select>
     </div>
-    <div class="row">
-      <label>Datum</label>
-      <input id="qDate" type="date" />
-    </div>
-    <div class="row">
-      <button id="btnFilter">Filtern</button>
-      <button id="btnReset" class="secondary">Zurücksetzen</button>
-    </div>
   </section>
 
-  <!-- Switch Liste / Kalender -->
-  <section class="container" style="margin-top:8px; display:flex; gap:8px;">
-    <button id="btnShowList" class="secondary">Liste</button>
-    <button id="btnShowCal">Kalender</button>
+  <section class="container">
+    <button id="btnList">Liste</button>
+    <button id="btnCalendar">Kalender</button>
   </section>
 
-  <!-- Wunsch (demande de changement) -->
-  <section class="container card" style="margin-top:8px;">
-    <h2>Wunsch (Dienst abgeben / tauschen)</h2>
-    <div class="row">
-      <input id="wName" type="text" placeholder="Dein Name" />
-      <input id="wDate" type="date" />
-      <input id="wNote" type="text" placeholder="Bemerkung (optional)" />
-      <button id="wSend">Anfrage senden</button>
-    </div>
-    <h3>Offene Anfragen</h3>
-    <ul id="wList" class="list"></ul>
+  <section id="listView" class="container">
+    <table>
+      <thead>
+        <tr><th>Datum</th><th>Start</th><th>Ende</th><th>Name</th><th>Code</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
   </section>
 
-  <!-- Calendrier -->
-  <section class="container" id="calendarSection" style="display:none;">
-    <div id="calendar" style="background:#161a22; border:1px solid #232838; border-radius:12px; padding:8px;"></div>
-    <div style="margin-top:10px" class="muted">
-      Legende:
-      <span class="badge badge--frueh"><span class="dot"></span>Frühschicht</span>
-      <span class="badge badge--spaet"><span class="dot"></span>Spätschicht</span>
-      <span class="badge badge--nacht"><span class="dot"></span>Nachtschicht</span>
-      <span class="badge badge--urlaub"><span class="dot"></span>Urlaub</span>
-      <span class="badge badge--frei"><span class="dot"></span>Frei</span>
-    </div>
+  <section id="calendarView" class="container" style="display:none">
+    <div id="calendar"></div>
   </section>
 
-  <!-- Liste -->
-  <section class="container grid-wrap" id="listSection">
-    <div class="grid">
-      <div class="card">
-        <h2>Team des Tages</h2>
-        <p class="muted">Zeigt, wer am gewählten Tag arbeitet (pro Dienst)</p>
-        <ul id="teamList" class="list"></ul>
-      </div>
-
-      <div class="card span-2">
-        <h2>Ergebnisse</h2>
-        <div class="table-wrap">
-          <table id="tbl">
-            <thead>
-              <tr>
-                <th>Datum</th>
-                <th>Beginn</th>
-                <th>Ende</th>
-                <th>Name</th>
-                <th>Dienst</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
+  <section class="container">
+    <h2>Wünsche</h2>
+    <form id="wunschForm">
+      <input type="text" id="reqName" placeholder="Ihr Name" required>
+      <input type="date" id="reqDate" required>
+      <input type="text" id="reqNote" placeholder="Bemerkung">
+      <button type="submit">Absenden</button>
+    </form>
+    <ul id="requestList"></ul>
   </section>
 
-  <footer class="container">
-    <p class="muted">
-      Codes: ES/SN → Spätschicht, EF/FN → Frühschicht, K2N/AK2/AKN → Nachtschicht, U/O → Urlaub, AV → Frei
-    </p>
-  </footer>
-  <!-- juste avant </body> (ou dans <head> avec defer) -->
-<script src="config.js"></script>
-<script src="script.js" defer></script>
+  <script src="config.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
-
-
