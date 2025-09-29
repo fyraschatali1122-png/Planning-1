@@ -2,7 +2,7 @@
 // const CSV_URL = "https://docs.google.com/.../output=csv";
 
 // Falls Wunsch-Backend aktiv:
-const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzxd-UNvqKSHj6Ue8TBBDo4yeWe_9MOeea-yekoP1M8h-5rkSv7WHw7xYTwm7Mj1ovLkQ/exec"; // <- später hier dein Apps Script /exec Link
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzLhYLXOlpTKJkKqPxxBOYW0j6rkjWwvIN9iFP0R20cjwqPJhJ450MXWxWyItKgDhMdcQ/exec"; // <- später hier dein Apps Script /exec Link
 
 let allData = [];
 
